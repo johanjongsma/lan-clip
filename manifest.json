@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "jongsma.lan-clip",
+  "name": "lan-clip",
+  "version": "0.1.0",
+  "author": "Johan Jongsma",
+  "license": "GPL-3.0-or-later",
+  "description": "The clipboard lan-mouse is missing: text, rich text and images sync between your lan-mouse machines (Linux and macOS), with status and pause in the bar.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "lan-clip",
+    "description": "Clipboard sync status for lan-mouse peers; right click pauses",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
