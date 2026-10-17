@@ -74,6 +74,17 @@ You can bind it to a key with the IPC target `jongsma.lan-clip`, which has
 bind = SUPER ALT, V, exec, omarchy-shell jongsma.lan-clip togglePause
 ```
 
+### Remove
+
+```sh
+omarchy plugin remove jongsma.lan-clip   # the bar widget, if you added it
+lan-clip uninstall                       # stops and removes the service
+cargo uninstall lan-clip
+```
+
+lan-clip never writes to lan-mouse's config. If you created
+`~/.config/lan-clip`, delete it too.
+
 ## Use
 
 Copy and paste as usual. To see what's happening:
