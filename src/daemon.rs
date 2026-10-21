@@ -10,10 +10,13 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader};
 use tokio::net::{TcpListener, TcpStream, UnixListener};
+use tokio::sync::Semaphore;
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 const PROBE_EVERY: Duration = Duration::from_secs(30);
+/// Incoming transfers handled at once; further connections are dropped.
+const MAX_INCOMING: usize = 4;
 
 #[derive(Serialize, Clone, Default)]
 pub struct PeerStatus {
@@ -89,15 +92,25 @@ pub async fn run(cfg: Config) -> Result<()> {
     eprintln!("lan-clip {}: listening on {}, {} peer(s)", env!("CARGO_PKG_VERSION"), ctx.cfg.port, ctx.peers.len());
 
     let acceptor = TlsAcceptor::from(server_tls);
+    let slots = Arc::new(Semaphore::new(MAX_INCOMING));
     let c = ctx.clone();
     tokio::spawn(async move {
         loop {
             let Ok((tcp, from)) = listener.accept().await else { continue };
+            let Ok(slot) = slots.clone().try_acquire_owned() else {
+                eprintln!("lan-clip: incoming from {from}: too many transfers in progress, dropped");
+                continue;
+            };
             let (c, acceptor) = (c.clone(), acceptor.clone());
             tokio::spawn(async move {
-                if let Err(e) = receive(&c, &acceptor, tcp).await {
-                    eprintln!("lan-clip: incoming from {from}: {e:#}");
+                // The whole transfer gets the time a sender of a max_bytes clip is given.
+                let deadline = CONNECT_TIMEOUT + Duration::from_secs((c.cfg.max_bytes / 2_000_000) as u64);
+                match tokio::time::timeout(deadline, receive(&c, &acceptor, tcp)).await {
+                    Ok(Ok(())) => {}
+                    Ok(Err(e)) => eprintln!("lan-clip: incoming from {from}: {e:#}"),
+                    Err(_) => eprintln!("lan-clip: incoming from {from}: timed out"),
                 }
+                drop(slot);
             });
         }
     });

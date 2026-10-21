@@ -105,8 +105,12 @@ impl Clip {
             if total > max {
                 bail!("clip larger than max_bytes ({max})");
             }
-            let mut data = vec![0u8; len];
-            r.read_exact(&mut data).await?;
+            // Grow with the bytes that actually arrive, not the length the peer claims.
+            let mut data = Vec::new();
+            (&mut *r).take(len as u64).read_to_end(&mut data).await?;
+            if data.len() != len {
+                bail!("clip truncated");
+            }
             clip.items.push((String::from_utf8(mime)?, data));
         }
         Ok(clip)
